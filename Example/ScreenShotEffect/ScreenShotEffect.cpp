@@ -6,6 +6,7 @@
 #include <iostream>
 #include <fstream>
 #include <windows.h>
+#include <sstream>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -83,7 +84,7 @@ IplImage* gray = 0;
 
 bool FocusWindow();
 void PressScreenShot();
-IplImage* GetClipboardImage();
+IplImage* GetClipboardImage(const bool writeBmp);
 
 
 int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
@@ -130,7 +131,7 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 				PressScreenShot();
 
 				cout << "get clipboard image" << endl;
-				IplImage *img = GetClipboardImage();
+				IplImage *img = GetClipboardImage(false);
 				if (img)
 				{
 					if (!output)
@@ -150,8 +151,15 @@ int _tmain(int argc, TCHAR* argv[], TCHAR* envp[])
 					cvThreshold(gray, output, threshold, 255, CV_THRESH_BINARY);
 					output->origin = img->origin; // 방향이 뒤집어 진것을 바로 잡아줌
 
-					imshow("screenshot", Mat(output));
+					imshow("screenshot", Mat(gray));
 					imshow("screenshot2", Mat(img));
+
+					static int id = 0;
+					++id;
+					stringstream ss;
+					ss << "gray" << id << ".jpg";
+					imwrite(ss.str(), Mat(gray));
+
 					waitKey(1);
 				}
 
@@ -236,7 +244,7 @@ void PressScreenShot()
 }
 
 
-IplImage* GetClipboardImage()
+IplImage* GetClipboardImage(const bool writeBmp)
 {
 	std::cout << "Format Bitmap: " << IsClipboardFormatAvailable(CF_BITMAP) << "\n";
 	std::cout << "Format DIB: " << IsClipboardFormatAvailable(CF_DIB) << "\n";
@@ -283,6 +291,35 @@ IplImage* GetClipboardImage()
 // 					std::cout << "Y-res: " << bmp.dib.biYPelsPerMeter << "\n";
 // 					std::cout << "ClrUsed: " << bmp.dib.biClrUsed << "\n";
 // 					std::cout << "ClrImportant: " << bmp.dib.biClrImportant << "\n";
+
+					if (writeBmp)
+					{
+						static int id = 0;
+						++id;
+						stringstream ss;
+						ss << "Test" << id << ".jpg";
+
+						std::ofstream file(ss.str(), std::ios::out | std::ios::binary);
+						if (file)
+						{
+							file.write(reinterpret_cast<char*>(&bmp.header.type), sizeof(bmp.header.type));
+							file.write(reinterpret_cast<char*>(&bmp.header.bfSize), sizeof(bmp.header.bfSize));
+							file.write(reinterpret_cast<char*>(&bmp.header.reserved), sizeof(bmp.header.reserved));
+							file.write(reinterpret_cast<char*>(&bmp.header.offset), sizeof(bmp.header.offset));
+							file.write(reinterpret_cast<char*>(&bmp.dib.biSize), sizeof(bmp.dib.biSize));
+							file.write(reinterpret_cast<char*>(&bmp.dib.biWidth), sizeof(bmp.dib.biWidth));
+							file.write(reinterpret_cast<char*>(&bmp.dib.biHeight), sizeof(bmp.dib.biHeight));
+							file.write(reinterpret_cast<char*>(&bmp.dib.biPlanes), sizeof(bmp.dib.biPlanes));
+							file.write(reinterpret_cast<char*>(&bmp.dib.biBitCount), sizeof(bmp.dib.biBitCount));
+							file.write(reinterpret_cast<char*>(&bmp.dib.biCompression), sizeof(bmp.dib.biCompression));
+							file.write(reinterpret_cast<char*>(&bmp.dib.biSizeImage), sizeof(bmp.dib.biSizeImage));
+							file.write(reinterpret_cast<char*>(&bmp.dib.biXPelsPerMeter), sizeof(bmp.dib.biXPelsPerMeter));
+							file.write(reinterpret_cast<char*>(&bmp.dib.biYPelsPerMeter), sizeof(bmp.dib.biYPelsPerMeter));
+							file.write(reinterpret_cast<char*>(&bmp.dib.biClrUsed), sizeof(bmp.dib.biClrUsed));
+							file.write(reinterpret_cast<char*>(&bmp.dib.biClrImportant), sizeof(bmp.dib.biClrImportant));
+							file.write(reinterpret_cast<char*>(info + 1), bmp.dib.biSizeImage);
+						}
+					}
 
 					if (!g_image)
 					{
